@@ -2,40 +2,53 @@
 
 const UserModel = require("../models/userModel")
 const bcryp = require('bcrypt');
+const asyncHandle = require('express-async-handler');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
-const register = async (req, res) => {
-    const {name, email, password} = req.body
-    const existingUser = await UserModel.findOne({email})
-    console.log(req.body)
+const getJsonWebToken = async (email, id) => {
+	const payload = {
+		email,
+		id,
+	};
+	const token = jwt.sign(payload, process.env.SECRET_KEY, {
+		expiresIn: '7d',
+	});
 
-    if(existingUser !== null) {
-        // res.status(400);
-        // throw new Error('User has already exist!')
-        res.send('Email existed')
-    }
-    res.send('Done register!')
+	return token;
+};
 
-    // const salt = await bcryp.genSalt(10);
-	// const hashedPassword = await bcryp.hash(password, salt);
+const register = asyncHandle(async (req, res) => {
+	const { name, email, password } = req.body;
 
-	// const newUser = new UserModel({
-	// 	name: name ?? '',
-	// 	email,
-	// 	password: hashedPassword,
-	// });
+	const existingUser = await UserModel.findOne({ email });
 
-	// await newUser.save();
+	if (existingUser) {
+		res.status(400);
+		throw new Error('User has already exist!!!');
+	}
 
-	// res.status(200).json({
-	// 	message: 'Register new user successfully',
-	// 	data: {
-	// 		email: newUser.email,
-	// 		id: newUser._id,
-	// 		// accesstoken: await getJsonWebToken(email, newUser.id),
-	// 	},
-	// });
-}
+	const salt = await bcryp.genSalt(10);
+	const hashedPassword = await bcryp.hash(password, salt);
+
+	const newUser = new UserModel({
+		name: name ?? '',
+		email,
+		password: hashedPassword,
+	});
+
+	await newUser.save();
+
+	res.status(200).json({
+		message: 'Register new user successfully',
+		data: {
+			email: newUser.email,
+			id: newUser._id,
+			accesstoken: await getJsonWebToken(email, newUser.id),
+		},
+	});
+});
 
 module.exports = {
-    register,
+	register,
 }
