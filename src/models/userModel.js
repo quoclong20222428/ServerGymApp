@@ -4,6 +4,10 @@ const UserSchema = new mongoose.Schema(
     {
         //Thông tin cá nhân user
         name: { type: String, trim: true },
+        givenName: { type: String, trim: true },
+        familyName: { type: String, trim: true },
+        bio: { type: String },
+        photoUrl: {type: String},
         age: {type: Number},
         height: {type: Number},
         weight: {type: Number},

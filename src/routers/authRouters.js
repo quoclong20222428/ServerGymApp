@@ -1,6 +1,10 @@
 /**@format */
 const Router = require('express')
-const { register } = require('../controllers/authController')
+const { 
+    register,
+    login,
+    handleLoginWithGoogle,
+} = require('../controllers/authController')
 
 const authRouter = Router()
 
@@ -9,6 +13,8 @@ const authRouter = Router()
 //     res.send('Go to register')
 // })
 
-authRouter.post('/register', register)
+authRouter.post('/register', register);
+authRouter.post('/login', login);
+authRouter.post('/google-signin', handleLoginWithGoogle);
 
 module.exports = authRouter
