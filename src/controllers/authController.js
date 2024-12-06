@@ -4,7 +4,18 @@ const UserModel = require("../models/userModel")
 const bcryp = require('bcrypt');
 const asyncHandle = require('express-async-handler');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
 require('dotenv').config();
+
+const transporter = nodemailer.createTransport({
+	host: 'smtp.gmail.com',
+	port: 587,
+	secure: false,
+	auth: {
+		user: process.env.USERNAME_EMAIL,
+		pass: process.env.PASSWORD_EMAIL,
+	},
+});
 
 const getJsonWebToken = async (email, id) => {
 	const payload = {
@@ -79,6 +90,52 @@ const login = asyncHandle(async (req, res) => {
 	});
 });
 
+const forgotPassword = asyncHandle(async (req, res) => {
+	const { email, password } = req.body;
+
+	const data = {
+		from: `"Support GymApp Application" <${process.env.USERNAME_EMAIL}>`,
+		to: email,
+		subject: 'Change password',
+		text: 'Your password change successfully!',
+		html: `<h1>Your password change successfully!</h1>`,
+	};
+
+	console.log(req.body)
+
+	const user = await UserModel.findOne({ email });
+	if (user) {
+		const salt = await bcryp.genSalt(10);
+		const hashedPassword = await bcryp.hash(password, salt);
+
+		await UserModel.findByIdAndUpdate(user._id, {
+			password: hashedPassword,
+			isChangePassword: true,
+		})
+			.then(() => {
+				console.log('Done');
+			})
+			.catch((error) => console.log(error));
+
+		await handleSendMail(data)
+			.then(() => {
+				res.status(200).json({
+					message: 'Send email new password successfully!!!',
+					data: [],
+				});
+			})
+			.catch((error) => {
+				res.status(401);
+				console.log('>-------<')
+				console.log(error)
+				throw new Error('Can not send email');
+			});
+	} else {
+		res.status(401);
+		throw new Error('User not found!!!');
+	}
+});
+
 const handleLoginWithGoogle = asyncHandle(async (req, res) => {
 	const userInfo = req.body;
 
@@ -138,8 +195,49 @@ const handleLoginWithGoogle = asyncHandle(async (req, res) => {
 	}
 });
 
+const handleSendMail = async (val) => {
+	try {
+		await transporter.sendMail(val);
+
+		return 'OK';
+	} catch (error) {
+		console.log(`Can not send Email! ${error}`)
+		return error;
+	}
+};
+
+const verification = asyncHandle(async (req, res) => {
+	const { email } = req.body;
+
+	const verificationCode = Math.round(1000 + Math.random() * 9000);
+
+	try {
+		const data = {
+			from: `"Support GymApp Application" <${process.env.USERNAME_EMAIL}>`,
+			to: email,
+			subject: 'Verification email code!',
+			text: 'Your code to verification email',
+			html: `<h1>${verificationCode}</h1>`,
+		};
+
+		await handleSendMail(data);
+
+		res.status(200).json({
+			message: 'Send verification code successfully!!!',
+			data: {
+				code: verificationCode,
+			},
+		});
+	} catch (error) {
+		res.status(401);
+		throw new Error('Can not send email!');
+	}
+});
+
 module.exports = {
 	register,
 	login,
+	verification,
+	forgotPassword,
 	handleLoginWithGoogle,
 }
